@@ -1,0 +1,139 @@
+---
+title: "MetaXcan_01b"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(library(knitr))
+suppressWarnings(library(magrittr))
+suppressWarnings(library(readr))
+suppressWarnings(library(xtable))
+suppressWarnings(source("_postgre_utilities.R"))
+suppressWarnings(source("_helpers.R"))
+suppressWarnings(source("_helpers_clinvar.R"))
+suppressWarnings(source("_helpers_clinvar_2.R"))
+suppressWarnings(source("_helpers_heatmap.R"))
+suppressWarnings(source("_helpers_genome_significant.R"))
+suppressWarnings(source("_helpers_gwas.R"))
+suppressWarnings(source("_helpers_coloc.R"))
+suppressWarnings(source("_helpers_smr.R"))
+suppressWarnings(source("_helpers_twas_metaxcan_coloc.R"))
+suppressWarnings(source("_helpers_smr_metaxcan_coloc.R"))
+suppressWarnings(source("_helpers_replication_discovery.R"))
+
+"%&%" <- function(a,b) paste(a,b,sep='')
+```
+
+
+```{r project layout, echo=FALSE, cache=FALSE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+```
+
+```{r twas_info, echo=FALSE, cache=TRUE}
+gencode <- read.delim("data/gencode.v19.txt.gz")
+gencode$gene_key <- gsub("\\..*","",gencode$gene)
+
+twas_phenos <- read.delim("data/twas_phenos.txt")
+
+conn <- db_v6p_hapmap_advanced_4_()
+twas <- get_twas_for_metaxcan(conn)
+DBI::dbDisconnect(conn)
+```
+
+## COLOC fraction for TWAS and S-PrediXcan
+
+```{r coloc_twas_spredixcan, echo=FALSE, cache=TRUE}
+conn <- db_v6p_hapmap_advanced_4_()
+twas_spec <- distinct(twas %>% dplyr::select(phenotype, tissue))
+metaxcan_twas <- build_data_3(conn, twas_spec)
+DBI::dbDisconnect(conn)
+```
+
+```{r twas_spredixcan_coloc, echo=FALSE, cache=TRUE}
+(function(){
+  twas_predixcan_coloc <- twas_predixcan_coloc_fraction_data(metaxcan_twas, gencode)
+  write.table(twas_predixcan_coloc, "results/twas_predixcan_coloc_data.tsv", row.names = FALSE, quote=FALSE, sep = "\t")
+  
+  d <- twas_predixcan_coloc %>% 
+    dplyr::inner_join(twas_phenos %>% dplyr::select(phenotype, phenotype_short), by="phenotype") %>%
+    dplyr::mutate(phenotype=phenotype_short) %>% dplyr::select(-phenotype_short)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% twas_predixcan_p3_fraction_plot() %>%
+    ratools::save_plot(file.path(plots_dir, "twas_predixcan_p3_proportion.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% twas_predixcan_p4_fraction_plot() %>%
+    ratools::save_plot(file.path(plots_dir, "twas_predixcan_p4_proportion.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% twas_predixcan_n_plot()  %>%
+    ratools::save_plot(file.path(plots_dir, "twas_predixcan_nsignificant.png"), height=700, width=700)
+})()
+```
+
+## COLOC fraction for SMR and S-PrediXcan
+
+```{r coloc_smr_spredixcan_data, echo=FALSE, cache=TRUE}
+  connection <- db_v6p_hapmap_advanced_4_()
+  smr_predixcan_coloc <- smr_predixcan_coloc_fraction_data(connection, unique(twas$phenotype), gencode, verbose=TRUE)
+  DBI::dbDisconnect(connection)
+```
+
+```{r coloc_smr_spredixcan, echo=FALSE, cache=TRUE}
+(function(){  
+  write.table(smr_predixcan_coloc, "results/smr_predixcan_coloc_data.tsv", row.names = FALSE, quote=FALSE, sep = "\t")
+  
+  d <- smr_predixcan_coloc %>% 
+    dplyr::inner_join(twas_phenos %>% dplyr::select(phenotype, phenotype_short), by="phenotype") %>%
+    dplyr::mutate(phenotype=phenotype_short) %>% dplyr::select(-phenotype_short)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p3_fraction_plot() %>%
+    ratools::save_plot(file.path(plots_dir, "smr_predixcan_p3_proportion.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p3_b_fraction_plot() %>%
+    ratools::save_plot(file.path(plots_dir, "smr_predixcan_p3_proportion_b.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p4_fraction_plot() %>%
+    ratools::save_plot(file.path(plots_dir, "smr_predixcan_p4_proportion.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p4_b_fraction_plot() %>%
+    ratools::save_plot(file.path(plots_dir, "smr_predixcan_p4_proportion_b.png"), height=700, width=700)
+
+})()
+```
+
+```{r coloc_smr_spredixcan_data_2, echo=FALSE, cache=TRUE}
+  connection <- db_v6p_hapmap_advanced_4_()
+  smr_predixcan_coloc_2 <- smr_predixcan_coloc_fraction_data(connection, unique(twas$phenotype), gencode, additional_filter=heidi_filter_)
+  DBI::dbDisconnect(connection)
+```
+
+```{r coloc_smr_spredixcan, echo=FALSE, cache=TRUE}
+(function(){  
+  write.table(smr_predixcan_coloc_2, "results/smr_predixcan_heidi_coloc_data.tsv", row.names = FALSE, quote=FALSE, sep = "\t")
+  
+  d <- smr_predixcan_coloc_2 %>% 
+    dplyr::inner_join(twas_phenos %>% dplyr::select(phenotype, phenotype_short), by="phenotype") %>%
+    dplyr::mutate(phenotype=phenotype_short) %>% dplyr::select(-phenotype_short)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p3_fraction_plot("smr, heidi>0.05") %>%
+    ratools::save_plot(file.path(plots_dir, "smr_h_predixcan_p3_proportion.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p3_b_fraction_plot("smr, heidi>0.05") %>%
+    ratools::save_plot(file.path(plots_dir, "smr_h_predixcan_p3_proportion_b.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p4_fraction_plot("smr, heidi>0.05") %>%
+    ratools::save_plot(file.path(plots_dir, "smr_h_predixcan_p4_proportion.png"), height=700, width=700)
+  
+  d %>% dplyr::filter(genes == "no_hla") %>% smr_predixcan_p4_b_fraction_plot("smr, heidi>0.05") %>%
+    ratools::save_plot(file.path(plots_dir, "smr_h_predixcan_p4_proportion_b.png"), height=700, width=700)
+})()
+```

@@ -1,0 +1,82 @@
+---
+title: "03_Coloc_Tern"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(magrittr)
+
+suppressWarnings(source("_helpers_smr.R"))
+suppressWarnings(source("_helpers_coloc.R"))
+```
+
+
+```{r project layout, echo=FALSE, cache=TRUE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+
+pheno_selected <- readr::read_csv(file.path(data.dir,'selected-phenotypes.txt'))
+```
+
+## Colocalization Ternary Plots
+
+```{r coloc_giant_height_data, echo=FALSE, cache=TRUE}
+#COLOC was run for all genes in a phenotype on only a few cases, because of the time it takes to complete.
+giant_coloc <- (function(){
+  metaxcan <- ratools::load_metaxcan_folder("data/GIANT_HEIGHT/metaxcan", 
+                remove_postfix=".csv", white_list="GIANT_HEIGHT_TW_(.*).csv$", s=c("gene","zscore","pheno", "tissue", "pred_perf_qval"))
+  metaxcan$pval <- 2*pnorm(-abs(metaxcan$zscore))
+  metaxcan$b <- 0.05/nrow(metaxcan)
+
+  coloc <- load_coloc("data/GIANT_HEIGHT/coloc", pheno_selected %>% dplyr::filter(pheno == "GIANT_HEIGHT"), verbose=FALSE)
+  coloc$gene <- gsub("\\.(.*)", "", coloc$gene_id)
+  hack <- metaxcan %>% 
+    dplyr::inner_join(coloc, by=c("gene","tissue")) %>%
+    dplyr::rename(p_h0=P_H0, p_h1=P_H1, p_h2=P_H2, p_h3=P_H3, p_h4=P_H4)
+
+  smr <- load_smr("data/GIANT_HEIGHT/smr", "GIANT_HEIGHT_eQTL_(.*)_Analysis.smr$") %>%
+    dplyr::rename(tissue = key) %>%
+    dplyr::mutate(gene = gsub("\\.(.*)", "", probeID)) %>%
+    dplyr::select(gene, tissue, p_smr=p_SMR, p_heidi=p_HET)
+  
+  hack %>% dplyr::left_join(smr, by=c("gene","tissue"))
+})()
+```
+
+```{r coloc giant_height_data, echo=FALSE, cache=TRUE}
+(function(){
+  p <- giant_coloc %>% plot_coloc_tern(title="All results", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_all_results.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval < 1e-4) %>% plot_coloc_tern(title="S-PrediXcan\npval<1e-4", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_mpe4.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval < b) %>% plot_coloc_tern(title="S-PrediXcan\nBonferroni Significant", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_s.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval < b, pred_perf_qval<0.01) %>% plot_coloc_tern(title="S-PrediXcan Significant\nBonferroni Significant\nPrediction Performance q-value<0.01", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_s_ppq01.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval < b, is.na(p_heidi)) %>% plot_coloc_tern(title="S-PrediXcan Significant\nBonferroni Significant\nMissing HEIDI", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_s_heidina.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval < b, p_heidi<0.05) %>% plot_coloc_tern(title="S-PrediXcan\nBonferroni Significant\nHEIDI<0.05", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_s_heidim05.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval<b, p_heidi>0.05, p_heidi<0.37) %>% plot_coloc_tern(title="S-PrediXcan\nBonferroni Significant\n0.05<HEIDI<0.37", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_s_heidiM05m37.png"), height=700, width=700)
+  
+  p <- giant_coloc %>% dplyr::filter(pval<b, p_heidi>0.37) %>% plot_coloc_tern(title="S-PrediXcan\nBonferroni Significant\nHEIDI>0.37", point_alpha=0.3)
+  ratools::save_plot(p, file.path(plots_dir, "gha_eqtl_tern_s_heidiM37.png"), height=700, width=700)
+  
+})()
+```

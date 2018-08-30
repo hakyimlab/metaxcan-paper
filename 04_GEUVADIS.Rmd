@@ -1,0 +1,98 @@
+---
+title: "04_Geuvadis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(library(magrittr))
+suppressWarnings(source("_helpers_geuvadis.R"))
+```
+
+```{r project layout, echo=FALSE, cache=TRUE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+```
+
+## Analysis
+
+```{r load_data, echo=FALSE, cache=TRUE}
+geuvadis_samples <- read.delim("data/GEUVADIS/samples.txt", header=FALSE)
+names(geuvadis_samples) <- c("id", "pop", "group", "sex", "u")
+geuvadis_expression <- read.delim("data/GEUVADIS/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt.gz")
+geuvadis_predicted_expression <- ratools::load_expression("data/GEUVADIS/expression_full")
+```
+
+First
+
+```{r geuvadis_correlation, echo=FALSE, cache=TRUE}
+geuvadis_correlation <- process_geuvadis_expression(geuvadis_expression, geuvadis_predicted_expression, geuvadis_samples)
+```
+
+```{r geuvadis_correlation_plot, echo=FALSE, cache=TRUE}
+geuvadis_correlation %>% geuvadis_qq_plot() %>% ratools::save_plot(file.path(plots_dir, "geuvadis_expression.png"), height=2400, width=2400)
+ 
+(function(){
+  p <- geuvadis_correlation %>%
+    dplyr::filter(model_name %in% c("Adipose_Subcutaneous", "Whole_Blood", "Brain_Cerebellum", "Skin_Sun_Exposed_Lower_leg")) %>%
+    geuvadis_qq_plot()
+  
+  p <- p + ggplot2::ggtitle("QQ-Plot: Correlation between GEUVADIS Expression\n and Predicted Gene Expression") +
+          ggplot2::theme(legend.position="bottom",
+                 legend.text=ggplot2::element_text(size=25),
+                 legend.title=ggplot2::element_text(size=25),
+                 strip.text = ggplot2::element_text(size=18, face="bold"),
+                 strip.background = ggplot2::element_rect(fill="white"),
+                 plot.title = ggplot2::element_text(hjust=0.5, face="bold", size=27),
+                 axis.title = ggplot2::element_text(size=25),
+                 axis.text = ggplot2::element_text(size=20))
+  p %>% ratools::save_plot(file.path(plots_dir, "geuvadis_expression_short.png"), height=800, width=800)
+})()
+
+geuvadis_correlation %>% write.table("results/geuvadis_correlation.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+```
+
+Now, repeat, but with the same number of european individuals and african individuals.
+
+```{r geuvadis_correlation_2, echo=FALSE, cache=TRUE}
+#If you want to try it on your own
+#geuvadis_predicted_expression_2 <- ratools::load_expression("data/GEUVADIS/expression_full", white_list="Cells_EBV-transformed_lymphocytes*")
+#for reproducibility     
+set.seed(0) 
+geuvadis_predicted_expression_2 <- list(Cells_EBV_transformed_lymphocytes=geuvadis_predicted_expression[["Cells_EBV_transformed_lymphocytes"]])
+geuvadis_correlation_2_r <- process_geuvadis_expression_2(geuvadis_expression, geuvadis_predicted_expression_2, geuvadis_samples)
+geuvadis_correlation_2 <- process_geuvadis_expression_2(geuvadis_expression, geuvadis_predicted_expression, geuvadis_samples)
+```
+
+```{r geuvadis_correlation_plot_2, echo=FALSE, cache=TRUE}
+(function() {
+  p_ <- function(correlation) {
+    correlation %>% geuvadis_qq_plot_2() +
+              ggplot2::theme(legend.position="bottom",
+                 legend.text=ggplot2::element_text(size=20),
+                 legend.title=ggplot2::element_text(size=20),
+                 plot.title = ggplot2::element_text(hjust=0.5, face="bold", size=27),
+                 plot.subtitle= ggplot2::element_text(hjust=0.5, face="italic", size=20, color="black"),
+                 axis.title = ggplot2::element_text(size=20),
+                 axis.text = ggplot2::element_text(size=18))
+  }
+
+  p <- p_(geuvadis_correlation_2$results) + ggplot2::ggtitle("QQ-Plot: Correlation between\nobserved and predicted expression in GEUVADIS")
+  p %>% ratools::save_plot(file.path(plots_dir, "geuvadis_expression_e.png"), height=2400, width=2400)
+  geuvadis_correlation_2$result %>% write.table("results/geuvadis_correlation_2.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+  geuvadis_correlation_2$selected_europeans %>% write("results/geuvadis_correlation_2_europeans.txt")
+  
+  p <- p_(geuvadis_correlation_2_r$results) + ggplot2::ggtitle("QQ-Plot: Correlation between\nobserved and predicted expression in GEUVADIS", subtitle="lymphoblastoid cell lines")
+  p %>% ratools::save_plot(file.path(plots_dir, "geuvadis_expression_e_short.png"), height=600, width=600)
+  geuvadis_correlation_2_r$result %>% write.table("results/geuvadis_correlation_2_r.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+  geuvadis_correlation_2_r$selected_europeans %>% write("results/geuvadis_correlation_2_r_europeans.txt")
+})()
+```

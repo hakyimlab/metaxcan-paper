@@ -1,0 +1,59 @@
+---
+title: "Scraps"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ratools)
+suppressWarnings(source("_helpers_smr_simul.R"))
+suppressWarnings(source("_helpers_models.R"))
+```
+
+## SMR Simulation
+
+```{r project_layout, echo=FALSE, cache=TRUE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+```
+
+```{r smr_simulation, echo=FALSE, cache=TRUE}
+#This has been deprecated, but I want to keep it just in case
+(function(){
+  #For reproducibility
+  set.seed(0)
+  s <- smr_stat_simul()
+  p <- plot_smr_simul(s)
+  save_plot(p, file.path(plots_dir, "smr_simul.png"), height=600, width=600)
+  
+  n_sim <- 2000
+  meta_s <- meta_smr_simul(n=n_sim)
+  p <- plot_meta_smr_simul(meta_s, n=n_sim)
+  save_plot(p, file.path(plots_dir, "smr_meta_simul.png"), height=600, width=600)
+})()
+```
+
+
+```{r}
+#pheno_summary %>% dplyr::select(identifier, s1=significant_gene_tissue_pairs, s2=significant_gene_tissue_pairs_pred_filtered, s3=significant_gene_tissue_pairs_pred_filtered_exclude_p3, s4=significant_gene_tissue_pairs_pred_filtered_excluding_0123)
+#metaxcan_results %>% dplyr::filter(phenotype == "GIANT_HEIGHT") %>% dplyr::select(gene_name, tissue, pval, pred_perf_pval) %>% dplyr::arrange(pval) %>% head()
+#metaxcan_results %>% dplyr::filter(phenotype == "GIANT_HEIGHT") %>% dplyr::select(gene_name, tissue, pval, pred_perf_pval) %>% dplyr::arrange(pval)
+#pheno_summary <- pheno_summary %>% dplyr::rename(significant_unique_genes_exclude_p3=significant_unique_genes_excluding_p3, significant_gene_tissue_pairs_pred_filtered_keep_p4=significant_gene_tissue_pairs_pred_filtered_keeping_p4, significant_unique_genes_keep_p4=significant_unique_genes_keeping_p4)
+# pheno_summary %>%
+#   dplyr::filter(identifier %in% c("GIANT_HEIGHT", "GLGC_Mc_LDL") | grepl("pgc", identifier)) %>%
+#   dplyr::select(identifier, s1=significant_gene_tissue_pairs, s2=significant_gene_tissue_pairs_pred_filtered, s3=significant_gene_tissue_pairs_pred_filtered_exclude_p3, s4=significant_gene_tissue_pairs_pred_filtered_keep_p4)
+# pheno_summary %>%
+#   dplyr::filter(identifier %in% c("GIANT_HEIGHT", "GLGC_Mc_LDL") | grepl("pgc", identifier)) %>%
+#   dplyr::select(identifier, s1=significant_unique_genes, s2=significant_unique_genes_pf, s3=significant_unique_genes_pf_exclude_p3, s4=significant_unique_genes_pf_keep_p4)
+pheno_summary %>%
+  dplyr::filter(identifier %in% c("GIANT_HEIGHT", "GLGC_Mc_LDL") | grepl("pgc", identifier)) %>%
+  dplyr::select(identifier, s1=significant_unique_genes, s2=significant_unique_genes_pf, s3=significant_unique_genes_pf_exclude_p3, s4=significant_unique_genes_pf_keep_p4)
+```

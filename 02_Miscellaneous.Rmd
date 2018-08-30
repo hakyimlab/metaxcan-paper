@@ -1,0 +1,94 @@
+---
+title: "02_Miscellaneous"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ratools)
+library(magrittr)
+suppressWarnings(source("_helpers_smr_simul.R"))
+suppressWarnings(source("_helpers_models.R"))
+```
+
+## Misc
+
+```{r project_layout, echo=FALSE, cache=TRUE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+```
+
+## Models
+
+```{r model_loading, echo=FALSE, cache=TRUE}
+models_extra <- load_models_extra_u("data/v6p_unfiltered_dbs")
+```
+
+```{r model_plots, echo=FALSE, cache=TRUE}
+(function(){ 
+  p <- plot_model_extra_histograms(models_extra) 
+  save_plot(p, file.path(plots_dir, "models_pvalue_histogram.png"), height=600, width=600)
+})()
+```
+
+## SMR Simulation
+
+RStudio shows a weird error on this section: `Error: C stack usage  7970804 is too close to the limit`.
+Couldn find a solution on the internet.
+
+```{r smr_simulation_data, echo=FALSE, cache=TRUE}
+#For reproducibility
+set.seed(0)
+n_smr <- 1e5
+s <- smr_stat_simul(n_smr)
+
+n_sim <- 1000
+meta_s <- meta_smr_simul_2(s=n_sim, n=n_smr)
+```
+
+```{r smr_simulation, echo=FALSE, cache=TRUE}
+(function(){
+  p <- plot_smr_simul_qq(s)
+  save_plot(p, file.path(plots_dir, "smr_simul.png"), height=700, width=700)
+  
+  #title <- bquote("mean(" ~ T[SMR] ~ ") for " ~ .(list(n_sim=n_sim)$n_sim) ~ " simulations")
+  title <- expression(bold(paste("mean(",T[SMR], ") for 1000 simulations")))
+  p <- plot_meta_smr_simul_density(meta_s, title)
+  save_plot(p, file.path(plots_dir, "smr_meta_simul.png"), height=700, width=700)
+ 
+})()
+```
+
+# SMR Simulation following Jiang
+
+```{r smr_simulation_data_2, echo=FALSE, cache=TRUE}
+set.seed(0)
+s2 <- smr_stat_simul_2(n_smr)
+
+meta_s_2 <- meta_smr_simul_yang()
+```
+
+```{r smr_simulation_2, echo=FALSE, cache=TRUE}
+(function(){
+  p <- plot_smr_simul_qq_(s2)
+  save_plot(p, file.path(plots_dir, "smr_simul_2.png"), height=700, width=700)
+  
+  title <- expression(bold(paste("mean(",T[SMR], ") for 1000 simulations")))
+  p <- plot_meta_smr_simul_histogram(meta_s_2, title)
+  save_plot(p, file.path(plots_dir, "smr_meta_simul_2.png"), height=700, width=700)
+})()
+
+```
+
+
+
+
+

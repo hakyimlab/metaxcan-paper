@@ -1,0 +1,105 @@
+---
+title: "01_predixcan_metaxcan_comparison.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(library(tidyr))
+suppressWarnings(library(readr))
+suppressWarnings(library(dplyr))
+suppressWarnings(library(ggplot2))
+suppressWarnings(source("_helpers_predixcan_metaxcan.R"))
+```
+
+## R Markdow
+
+```{r load_predixcan_data, echo=FALSE, cache=TRUE}
+PREDIXCAN_T <- "data/predixcan_results/predixcan_%s_%s_dgnwb.txt"
+POP_TOKEN <- c("afr","eur", "eas")
+
+predixcan_igrowth <- load_predixcan_data(PREDIXCAN_T, "igrowth", POP_TOKEN)
+predixcan_sim <- load_predixcan_data(PREDIXCAN_T, "sim", POP_TOKEN)
+```
+
+```{r load_metaxcan_data, echo=FALSE, cache=TRUE}
+METAXCAN_T <- "data/metaxcan_results/%s_b_%s_c_%s.csv"
+
+metaxcan_igrowth <- load_metaxcan_data(METAXCAN_T, "igrowth", POP_TOKEN)
+metaxcan_sim <- load_metaxcan_data(METAXCAN_T, "sim", POP_TOKEN)
+```
+
+
+```{r plot, echo=FALSE, cache=TRUE}
+(function(){ 
+  plot_config <- m_p_plot_config(axis_text_size=8)
+  sim_comparison_plot_data <- build_predixcan_metaxcan_plot_data(predixcan_sim, metaxcan_sim, POP_TOKEN)
+  sim_plot <- m_p_grid_plot(sim_comparison_plot_data)
+  ratools::save_plot(sim_plot, "results/plots/predixcan_metaxcan_simulated_comparison.png", width=1200, height=1200)
+
+  plot_config <- m_p_plot_config(r_x=-7)
+  igrowth_comparison_plot_data <- build_predixcan_metaxcan_plot_data(predixcan_igrowth, metaxcan_igrowth, POP_TOKEN)
+  igrowth_plot <- m_p_grid_plot(igrowth_comparison_plot_data, plot_config)
+  ratools::save_plot(igrowth_plot, "results/plots/predixcan_metaxcan_igrowth_comparison.png", width=1200, height=1200)
+})()
+```
+
+```{r kaanan_data, echo=FALSE ,cache=TRUE}
+(function() { 
+  plot_config <- m_p_plot_config(axis_title_font_size=30, r_x=-7, r_y=5)
+  pbd <- read.delim("data/predixcan_results/PrediXcan_BD_DGNWholeBlood_EN0.5.txt", sep=" ")
+  mbd <- read.csv("data/metaxcan_results/bd-gwas_scaled.csv")
+  bd <- merge_p_m(pbd, mbd, by_p="gene",by_m="gene_name")
+  bd$the_facet <- "Bipolar Disorder"
+
+  pt1d <- read.delim("data/predixcan_results/PrediXcan_T1D_DGNWholeBlood_EN0.5.txt", sep=" ")
+  mt1d <- read.csv("data/metaxcan_results/t1d-gwas_scaled.csv")
+  t1d <- merge_p_m(pt1d, mt1d, by_p="gene",by_m="gene_name")
+  t1d$the_facet <- "Type 1 Diabetes"
+  
+  data <- rbind(bd, t1d)
+  p <- m_p_facet_plot(data, plot_config)
+
+  ratools::save_plot(p, "results/plots/predixcan_metaxcan_t1d_bd_comparison.png", width=600, height=1200)
+})()
+```
+
+```{r alternative_simulation, echo=FALSE, cache=TRUE}
+(function(){
+  sp <- read_tsv("data/simulation/predixcan.txt")
+  mp <- read_csv("data/simulation/metaxcan.csv")
+  m <- sp %>% inner_join(mp, by="gene") %>% select(gene, zscore.x, zscore.y)
+  p <- ggplot(data=m) + 
+    geom_point(aes(x=zscore.x, y=zscore.y), size=4) + geom_abline(slope=1, intercept=0, color="gray") +
+    xlim(-3, 33) +  ylim(-3, 33) +
+    theme_bw() + xlab("Actual associations") + ylab("S-PrediXcan associations") +
+    ggtitle("S-PrediXcan associations", subtitle="phenotype simulated under alternative hypothesis") + 
+    ggplot2::theme( 
+      plot.title = element_text(hjust = 0.5, vjust=0, size=28, face="bold"),
+      plot.subtitle = element_text(size=20, hjust=0.5, face="italic", color="black"),
+      axis.text = element_text(size=20, face="bold"),
+      axis.title.y = element_text(size = 25, face="bold", margin=ggplot2::margin(0,20,0,10)),
+      axis.title.x = element_text(size = 25, face="bold", margin=ggplot2::margin(20,0,10,0)))
+  ratools::save_plot(p, "results/plots/predixcan_metaxcan_simulated_alt_comparison.png", width=600, height=600)
+})()
+```
+
+```{r alternative_simulation_2, echo=FALSE, cache=TRUE}
+(function(){
+  sp <- read_tsv("data/alternative_hypothesis/predixcan.txt")
+  mp <- read_csv("data/alternative_hypothesis/metaxcan.csv")
+  m <- sp %>% inner_join(mp, by="gene") %>% select(gene, zscore.x, zscore.y)
+  p <- ggplot(data=m) + 
+    geom_point(aes(x=zscore.x, y=zscore.y), size=4) + geom_abline(slope=1, intercept=0, color="gray") +
+    xlim(-10, 20) +  ylim(-10, 20) +
+    theme_bw() + xlab("PrediXcan associations") + ylab("S-PrediXcan associations") +
+    ggtitle("S-PrediXcan association accuracy", subtitle="linear combination of gene expressions as phenotype") + 
+    ggplot2::theme( 
+      plot.title = element_text(hjust = 0.5, vjust=0, size=28, face="bold"),
+      plot.subtitle = element_text(size=20, hjust=0.5, face="italic", color="black"),
+      axis.text = element_text(size=20, face="bold"),
+      axis.title.y = element_text(size = 25, face="bold", margin=ggplot2::margin(0,20,0,10)),
+      axis.title.x = element_text(size = 25, face="bold", margin=ggplot2::margin(20,0,10,0)))
+  ratools::save_plot(p, "results/plots/predixcan_metaxcan_alt_comparison.png", width=600, height=600)
+})()
+```

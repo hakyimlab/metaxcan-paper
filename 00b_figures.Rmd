@@ -1,0 +1,46 @@
+---
+title: "MetaXcan_01b"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(library(knitr))
+suppressWarnings(library(magrittr))
+suppressWarnings(library(readr))
+suppressWarnings(library(xtable))
+suppressWarnings(source("_postgre_utilities.R"))
+suppressWarnings(source("_helpers.R"))
+suppressWarnings(source("_helpers_clinvar.R"))
+suppressWarnings(source("_helpers_clinvar_2.R"))
+suppressWarnings(source("_helpers_heatmap.R"))
+suppressWarnings(source("_helpers_genome_significant.R"))
+suppressWarnings(source("_helpers_gwas.R"))
+suppressWarnings(source("_helpers_coloc.R"))
+suppressWarnings(source("_helpers_smr.R"))
+suppressWarnings(source("_helpers_twas_metaxcan_coloc.R"))
+suppressWarnings(source("_helpers_smr_metaxcan_coloc.R"))
+suppressWarnings(source("_helpers_replication_discovery.R"))
+
+"%&%" <- function(a,b) paste(a,b,sep='')
+```
+
+
+```{r project layout, echo=FALSE, cache=FALSE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+```
+
+```{r twas_info, echo=FALSE, cache=TRUE}
+conn <- db_v6p_hapmap_advanced_4_()
+twas <- get_twas_for_metaxcan(conn)
+DBI::dbDisconnect(conn)
+```

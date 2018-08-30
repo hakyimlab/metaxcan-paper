@@ -1,0 +1,294 @@
+---
+title: "MetaXcan_01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(library(knitr))
+suppressWarnings(library(magrittr))
+suppressWarnings(library(readr))
+suppressWarnings(library(xtable))
+suppressWarnings(source("_postgre_utilities.R"))
+suppressWarnings(source("_helpers.R"))
+suppressWarnings(source("_helpers_qq.R"))
+suppressWarnings(source("_helpers_clinvar.R"))
+suppressWarnings(source("_helpers_clinvar_2.R"))
+suppressWarnings(source("_helpers_heatmap.R"))
+suppressWarnings(source("_helpers_genome_significant.R"))
+suppressWarnings(source("_helpers_gwas.R"))
+suppressWarnings(source("_helpers_coloc.R"))
+suppressWarnings(source("_helpers_smr.R"))
+suppressWarnings(source("_helpers_twas_metaxcan_coloc.R"))
+suppressWarnings(source("_helpers_smr_metaxcan_coloc.R"))
+suppressWarnings(source("_helpers_replication_discovery.R"))
+
+"%&%" <- function(a,b) paste(a,b,sep='')
+```
+
+## R Generalities
+
+Although these MArkdown is called `figures there is mor to it than mere figures.
+
+```{r project layout, echo=FALSE, cache=FALSE}
+results_dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+data.dir <- 'data'
+
+results.dir <- 'results'
+if(!dir.exists(results_dir)) dir.create(results_dir)
+
+plots_dir <- file.path(results_dir, 'plots')
+if(!dir.exists(plots_dir)) dir.create(plots_dir)
+
+#some configuration info and data to be considered as input
+gene_spotlight <- read_csv(file.path(data.dir,'genes_spotlight.csv'))
+pheno_selected <- read_csv(file.path(data.dir,'selected-phenotypes.txt'))
+tissue_colors <- read_tsv(file.path(data.dir,'gen_tissue_colors.tsv')) # read_tsv(file.path(data.dir,'gtex_tissue_colors.txt'))
+gencode <- read.delim("data/gencode.v19.txt.gz")
+gencode$gene_key <- gsub("\\..*","",gencode$gene)
+replication_relationship <- read_tsv("data/replicate_relationship.txt")
+twas_phenos <- read_tsv("data/twas_phenos.txt")
+```
+
+```{r plot data, echo = FALSE, cache=TRUE}
+
+metaxcan_results <- read.delim("data/metaxcan_results.txt")
+metaxcan_results_replication <- read.delim("data/metaxcan_results_replication.txt")
+pheno_info <- read.delim("data/pheno_info.txt")
+twas <- read.delim("data/twas.txt")
+ 
+bonferroni <- metaxcan_results %>% dplyr::group_by(phenotype) %>% dplyr::summarize(b=0.05/n())
+metaxcan_results <- metaxcan_results %>% dplyr::inner_join(bonferroni, by="phenotype")
+```
+
+## Associations and Model Performance
+
+```{r zscore2_stuff, echo=FALSE, cache=TRUE}
+figure_zscore2_pred_perf_r2(file.path(plots_dir, "zscore2-vs-pred-perf-R2-by-phenotype.png"), metaxcan_results, "phenotype", 5, 1250, 1340)
+figure_zscore2_pred_perf_r2(file.path(plots_dir, "zscore2-vs-pred-perf-R2-by-tissue.png"), metaxcan_results, "tissue", 7, 1250, 1400)
+figure_zscore2_pred_perf_pval(file.path(plots_dir, "zscore2-vs-pred-perf-pval-by-phenotype.png"), metaxcan_results, "phenotype", 5, 1250, 1340)
+figure_zscore2_pred_perf_pval(file.path(plots_dir, "zscore2-vs-pred-perf-pval-by-tissue.png"), metaxcan_results, "tissue", 7, 1250, 1400)
+```
+
+## Clinvar
+
+```{r clinvar, echo=FALSE, cache=TRUE}
+clinvar <- read_tsv(file.path(data.dir,'clinvar/gene_condition_source_id'))
+chosen_clinvar_tags <- c("ALZH", "BMI",  "T2D", "CROHN", "ULCERC", "RA", "AMD", "AUTIS", "SCZ")
+
+HLA <- select_around_genes_2(gencode, chromosome="chr6", start=28866528, end=33775446)
+hla_genes <- unique(HLA$gene_name)
+exclude_hla <- function(data) {
+  data %>% dplyr::filter(!(gene_name %in% hla_genes))
+}
+
+# 
+(function() {
+  p <- clinvar_qq_plot(metaxcan_results, pheno_selected, clinvar, chosen_clinvar_tags)
+  ratools::save_plot(p, file.path(plots_dir, "clinvar.png"), height=1200, width=1200)
+  
+  p <- clinvar_qq_plot(metaxcan_results, pheno_selected, clinvar, chosen_clinvar_tags, additional_filter = exclude_hla, title_addition="HLA Excluded")
+  ratools::save_plot(p, file.path(plots_dir, "clinvar_hla_excluded.png"), height=1200, width=1200)
+  
+  m_ <- metaxcan_results %>% dplyr::filter(!(phenotype %in% c("AdvancedAMD_2015", "pgc.aut.euro", "pgc.scz2")))
+  p <- clinvar_qq_plot(m_, pheno_selected, clinvar, chosen_clinvar_tags, additional_filter = p4_filter_, title_addition= "p4>0.5")
+  ratools::save_plot(p, file.path(plots_dir, "clinvar_p4.png"), height=850, width=1200)
+  
+  p <- clinvar_qq_plot(m_, pheno_selected, clinvar, chosen_clinvar_tags, additional_filter = p3_filter_, title_addition= "p3>0.5")
+  ratools::save_plot(p, file.path(plots_dir, "clinvar_p3.png"), height=850, width=1200)
+  
+  p <- clinvar_qq_plot(m_, pheno_selected, clinvar, chosen_clinvar_tags, additional_filter = p_rest_filter_, title_addition= "p0+p1+p2>0.5")
+  ratools::save_plot(p, file.path(plots_dir, "clinvar_p_rest.png"), height=850, width=1200)
+})()
+```
+
+```{r clinvar_genes_hla, echo=FALSE, cache=TRUE}
+function(){
+  k <- clinvar_for_genes(metaxcan_results, pheno_selected, clinvar, chosen_clinvar_tags, hla_genes)
+  write.table(k, "results/clinvar_hla_genes.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+}
+```
+
+```{r clinvar_2, echo=FALSE, cache=TRUE}
+(function(){
+  clinvar_pheno_selected <- clinvar_pheno_selected_(pheno_selected, chosen_clinvar_tags) %>% mutate(phenotype = pheno)
+  m <- metaxcan_results %>%
+    dplyr::inner_join(clinvar_pheno_selected %>% dplyr::select(phenotype, label), by="phenotype")
+  
+  clinvar_filter <- build_clinvar_filter(clinvar, clinvar_pheno_selected)
+  mc <- m %>% dplyr::inner_join(clinvar_filter, by=c("phenotype", "gene_name"))
+  k <- mc %>% dplyr::select(pheno = phenotype, tissue = tissue, gene=gene)
+  write.table(k, "results/clinvar_filter.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+})()
+
+(function() {
+  clinvar_pheno_selected <- clinvar_pheno_selected_(pheno_selected, chosen_clinvar_tags) %>% mutate(phenotype = pheno)
+  coloc <- load_coloc("data/coloc_clinvar", clinvar_pheno_selected, verbose=FALSE)
+  m_ <- overwrite_coloc_results(metaxcan_results, coloc)
+  p <- clinvar_qq_plot_c(m_, pheno_selected, clinvar, chosen_clinvar_tags)
+  ratools::save_plot(p, file.path(plots_dir, "clinvar_p.png"), height=1200, width=1200)
+})()
+```
+
+```{r heatmap, echo=FALSE, cache=TRUE} 
+plot_metaxcan_heatmap_data(metaxcan_results, pheno_selected, tissue_colors, file.path(plots_dir,'table-absZ2-tissue-phenotype-no-high.png'), h=800, w=800)
+```
+
+```{r gwas, echo=FALSE, cache=TRUE}
+cad_gwas <- load_cardiogram_c4d("data/GWAS/cad.add.160614.website.txt.gz")
+```
+
+## Significance
+
+```{r gwas_significance, echo=FALSE, cache=TRUE}
+(function() { 
+  signif <- find_genes_more_significant_than_gwas(cad_gwas, gencode, metaxcan_results, "CARDIoGRAM_C4D_CAD_ADDITIVE" )
+  signif <- signif %>% dplyr::arrange(-top_snp_pvalue)
+  o <- signif %>% dplyr::select(gene_name, tissue, pval, top_rsid, top_snp_pvalue)
+  write.table(o, "results/results_cad_additive.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+})()
+```
+
+## Gene Spotlight
+
+```{r gene_spotlight, echo=FALSE, cache=TRUE}
+(function(){
+  k <- metaxcan_results %>% 
+    dplyr::inner_join(gene_spotlight, by=c("gene_name", "phenotype")) %>% 
+    dplyr::arrange(gene_name, phenotype, pval) %>%
+    dplyr::select(-gene) %>%
+    dplyr::rename("pheno_tag"="phenotype") %>%
+    dplyr::inner_join( pheno_selected %>% dplyr::select(pheno, label), by=c("pheno_tag"="pheno")) %>%
+    dplyr::rename("phenotype"="label") %>%
+    dplyr::select(gene_name, phenotype, pheno_tag, tissue, effect_size, zscore, pval, p_h0, p_h1, p_h2, p_h3, p_h4,
+                  pred_perf_r2, pred_perf_pval, pred_perf_qval, n_snps_used, n_snps_model, p_smr, p_heidi, twas_pvalue)
+  
+  write.table(k, "results/supplementary_table_results_known_functional_genes.csv", row.names = FALSE, quote=FALSE, sep = ",")
+  
+  niceify_latex <- function(k, gene) {
+    k %>% dplyr::filter(gene_name == gene) %>% mutate(pval = scales::scientific(pval, digits=2), pred_perf_pval=scales::scientific(pred_perf_pval, digits=2)) %>%
+      dplyr::select(Gene=gene_name, Phenotype=phenotype, Effect_Size=effect_size, Pvalue=pval, Tissue=tissue, Pred.Perf.R2=pred_perf_r2, Pred.Perf.Pvalue=pred_perf_pval, P3=p_h3, P4=p_h4) %>%
+      dplyr::mutate(Tissue = gsub("_", " ", Tissue)) %>%
+      dplyr::mutate(Phenotype = gsub("LDL Cholesterol", "LDL-C", Phenotype)) %>% dplyr::mutate(Phenotype = gsub("Coronary Artery Disease", "CAD", Phenotype)) %>%
+      xtable() %>% 
+      print(type="latex", include.rownames=FALSE, file=paste0("results/spotlight_",gene,".tex"))
+  }
+  
+  k %>% niceify_latex("C4A") 
+  k %>% niceify_latex("SORT1")
+  k %>% niceify_latex("PCSK9")
+})()
+```
+
+## Tissue Specificity
+
+```{r tissue_specifity_histogram, echo=FALSE, cache=TRUE}
+(function(){
+  t_s_ <- function(d) {
+    d %>% dplyr::filter(pval < b) %>%
+      dplyr::select(gene_name, phenotype, tissue) %>%
+      dplyr::group_by(gene_name, phenotype) %>%
+      dplyr::summarise(n_tissues=n())
+  }
+  
+  s <- metaxcan_results %>% t_s_()
+  p <- plot_histogram(s, "n_tissues", title="Significant Associations", label="Number of Tissues")
+  ratools::save_plot(p, file.path(plots_dir, "significant_results_tissue_specificity.png"), height=600, width=1600)
+  
+  s <- metaxcan_results %>% dplyr::filter(phenotype == "GIANT_HEIGHT") %>% t_s_()
+  p <- plot_histogram(s, "n_tissues", title="Significant Associations for Height", label="Number of Tissues", nbins=44)
+  ratools::save_plot(p, file.path(plots_dir, "significant_results_tissue_specificity_height.png"), height=600, width=1600)
+})()
+```
+
+## COLOC Summary
+
+```{r coloc_summary, echo=FALSE, cache=TRUE}
+(function(){
+  #Exclude Advanced AMD because COLOC couldn be run there
+  k <- metaxcan_results %>%
+    dplyr::filter(pval<b, phenotype != "AdvancedAMD_2015") %>%
+    dplyr::mutate(coloc_tag = ifelse(is.na(p_h0), "Missing",
+                              ifelse(p_h4>0.5, "H4", 
+                              ifelse(p_h3>0.5, "H3", "Undetermined")))) %>%
+    dplyr::mutate(coloc_tag = factor(coloc_tag, levels=c("Missing", "Undetermined", "H3", "H4"))) %>%
+    dplyr::group_by(phenotype) %>%
+    dplyr::summarise(h4=sum(coloc_tag == "H4"), h3=sum(coloc_tag == "H3"), undetermined=sum(coloc_tag == "Undetermined"), missing=sum(coloc_tag == "Missing")) %>%
+    dplyr::mutate(total=undetermined+missing+h3+h4, 
+                  percent_undetermined=scales::percent(undetermined/total), 
+                  percent_missing=scales::percent(missing/total), 
+                  percent_h3=scales::percent(h3/total), 
+                  percent_h4=scales::percent(h4/total)) %>%
+    dplyr::select(phenotype, total, h4, percent_h4, h3, percent_h3, undetermined, percent_undetermined, missing, percent_missing) %>%
+    dplyr::inner_join(pheno_selected %>% dplyr::select(phenotype=pheno, label=label), by="phenotype") %>%
+    dplyr::mutate(phenotype=label) %>% dplyr::select(-label)
+  write.table(k, "results/coloc_summary.csv", row.names = FALSE, quote=FALSE, sep = "\t")
+  k %>% arrange(phenotype) %>% xtable() %>%
+    print(type="latex", include.rownames=FALSE, file="results/coloc_summary.tex")
+})()
+```
+
+## SMR And TWAS
+
+```{r twas_smr_predixcan, echo=FALSE, cache=TRUE}
+(function() {
+  lim <- 50
+  d <- metaxcan_results %>% dplyr::filter(phenotype == "GIANT_HEIGHT") %>%
+    dplyr::mutate(log_p_metax = pmin(-log10(pval), lim)) %>%
+    dplyr::mutate(log_p_twas = pmin(-log10(twas_pvalue), lim)) %>%
+    dplyr::mutate(log_p_smr = pmin(-log10(p_smr), lim))
+  
+  smr <- smr_vs_metaxcan_plot(d, "Height Phenotype")
+  ratools::save_plot(smr, file.path(plots_dir, "s_predixcan_vs_smr.png"), height=700, width=700)
+  twas <- twas_vs_metaxcan_plot(d, "Height Phenotype")
+  ratools::save_plot(twas, file.path(plots_dir, "s_predixcan_vs_twas.png"), height=700, width=700)
+})()
+```
+
+## SMR vs GWAS and top eQTL
+
+```{r smr_data, echo=FALSE, cache=TRUE}
+(function(){
+  smr <- load_smr("data/GIANT_HEIGHT/smr", "GIANT_HEIGHT_eQTL_(.*)_Analysis.smr$") %>% 
+    smr_breakdown_2() %>%
+    dplyr::mutate(smr = pmin(-log10(p_SMR), 50),
+                  gwas = pmin(-log10(p_top_gwas), 50),
+                  eqtl = pmin(-log10(p_top_eqtl), 50))
+  
+  smr %>% smr_vs_topeqtl_plot(subtitle="Height Phenotype") %>%
+    ratools::save_plot(file.path(plots_dir, "giant_height_adipose_subcutaneous_smr_vs_eqtl.png"), height=700, width=700)
+  
+  smr %>% smr_vs_topeqtlgwas_plot(subtitle="Height Phenotype") %>%
+    ratools::save_plot(file.path(plots_dir, "giant_height_adipose_subcutaneous_smr_vs_gwas.png"), height=700, width=700)
+})()
+```
+
+## Discovery and Replication
+
+```{r metaxcan_replication, echo=FALSE, cache=TRUE}
+(function(){
+  #for reproducibility     
+  set.seed(0) 
+
+  stats <- metaxcan_replication_stats(metaxcan_results, metaxcan_results_replication, replication_relationship, pheno_info)
+  write.table(stats, "results/replication.txt", row.names = FALSE, quote=FALSE, sep = "\t")
+  
+  only_ldl <- replication_relationship %>% dplyr::filter(pheno_disc == "GLGC_Mc_LDL")
+  plot_replication_simple(metaxcan_results, metaxcan_results_replication, only_ldl) %>% 
+    ratools::save_plot(file.path(plots_dir, "replication_ldl.png"), height=700, width=700)
+  
+  no_diagram <-  replication_relationship %>% dplyr::filter(pheno_disc != "DIAGRAM_T2D_TRANS_ETHNIC")
+  plot_replication_faceted(metaxcan_results, metaxcan_results_replication, no_diagram) %>%
+   ratools::save_plot(file.path(plots_dir, "replication_nodiagram.png"), height=1200, width=1200)
+})()
+
+```
+
+# Pheno Summary
+
+```{r pheno_summary, echo=FALSE, cache=TRUE}
+pheno_summary <- get_pheno_summary_2(pheno_info, metaxcan_results)
+pheno_summary %>% write.table("results/supplementary_table_consortia.csv", row.names = FALSE, quote=FALSE, sep = ",")
+```
