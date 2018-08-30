@@ -46,7 +46,7 @@ smr_predixcan_coloc_fraction_data_process_ <- function(data, exclude_genes, addi
 }
 
 
-smr_predixcan_coloc_fraction_data <- function(connection, phenos, gencode, verbose=FALSE, additional_filter=NULL) {
+smr_predixcan_coloc_fraction_data <- function(metaxcan_results, phenos, gencode, verbose=FALSE, additional_filter=NULL) {
   #exclude hla genes
   HLA <- select_around_genes_2(gencode, chromosome="chr6", start=28866528, end=33775446)
   exclude_genes <- unique(HLA$gene_name)
@@ -54,7 +54,7 @@ smr_predixcan_coloc_fraction_data <- function(connection, phenos, gencode, verbo
   results <- data.frame()
   for (pheno in sort(phenos)) {
     if (verbose) { message("Processing " %&% pheno) }
-    data <- build_data_2(connection, c(pheno))
+    data <- metaxcan_results %>% filter(phenotype == pheno)
     results_ <- smr_predixcan_coloc_fraction_data_process_(data, exclude_genes, additional_filter)
     if (is.null(results_)) { next }
     results <- rbind(results, results_)

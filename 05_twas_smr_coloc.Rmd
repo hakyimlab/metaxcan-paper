@@ -45,18 +45,15 @@ gencode$gene_key <- gsub("\\..*","",gencode$gene)
 
 twas_phenos <- read.delim("data/twas_phenos.txt")
 
-conn <- db_v6p_hapmap_advanced_4_()
-twas <- get_twas_for_metaxcan(conn)
-DBI::dbDisconnect(conn)
+twas <- read_tsv("data/twas.txt")
 ```
 
 ## COLOC fraction for TWAS and S-PrediXcan
 
 ```{r coloc_twas_spredixcan, echo=FALSE, cache=TRUE}
-conn <- db_v6p_hapmap_advanced_4_()
 twas_spec <- distinct(twas %>% dplyr::select(phenotype, tissue))
-metaxcan_twas <- build_data_3(conn, twas_spec)
-DBI::dbDisconnect(conn)
+metaxcan_twas <- read.delim("data/metaxcan_twas_full.txt")
+metaxcan_results <- read_tsv("data/metaxcan_results.txt")
 ```
 
 ```{r twas_spredixcan_coloc, echo=FALSE, cache=TRUE}
@@ -82,12 +79,10 @@ DBI::dbDisconnect(conn)
 ## COLOC fraction for SMR and S-PrediXcan
 
 ```{r coloc_smr_spredixcan_data, echo=FALSE, cache=TRUE}
-  connection <- db_v6p_hapmap_advanced_4_()
-  smr_predixcan_coloc <- smr_predixcan_coloc_fraction_data(connection, unique(twas$phenotype), gencode, verbose=TRUE)
-  DBI::dbDisconnect(connection)
+  smr_predixcan_coloc <- smr_predixcan_coloc_fraction_data(metaxcan_twas, unique(twas$phenotype), gencode, verbose=TRUE)
 ```
 
-```{r coloc_smr_spredixcan, echo=FALSE, cache=TRUE}
+```{r coloc_smr_spredixcan_2, echo=FALSE, cache=TRUE}
 (function(){  
   write.table(smr_predixcan_coloc, "results/smr_predixcan_coloc_data.tsv", row.names = FALSE, quote=FALSE, sep = "\t")
   
@@ -111,9 +106,7 @@ DBI::dbDisconnect(conn)
 ```
 
 ```{r coloc_smr_spredixcan_data_2, echo=FALSE, cache=TRUE}
-  connection <- db_v6p_hapmap_advanced_4_()
-  smr_predixcan_coloc_2 <- smr_predixcan_coloc_fraction_data(connection, unique(twas$phenotype), gencode, additional_filter=heidi_filter_)
-  DBI::dbDisconnect(connection)
+  smr_predixcan_coloc_2 <- smr_predixcan_coloc_fraction_data(metaxcan_twas, unique(twas$phenotype), gencode, additional_filter=heidi_filter_)
 ```
 
 ```{r coloc_smr_spredixcan, echo=FALSE, cache=TRUE}
