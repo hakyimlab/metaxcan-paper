@@ -10,6 +10,8 @@ You can find MetaXcan implementation in [Github](https://github.com/hakyimlab/Me
 
 ## Instructions
 
+You should build the R package `ratools`, included in a subfolder in this repository. It's readme list isntalation instructions.
+
 Download the data release from [https://doi.org/10.5281/zenodo.1406323](https://zenodo.org/record/1406324#.W4hCCBgna90).
 Unpack it into `data` subfolder so that it looks like:
 ```
