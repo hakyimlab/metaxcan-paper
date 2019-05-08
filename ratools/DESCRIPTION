@@ -1,0 +1,15 @@
+Package: ratools
+Title: Analyses some genomic data
+Version: 0.0.0.9000
+Authors@R: person("Alvaro", "Barbeira", email = "mundoconspam@gmail.com", role = c("aut", "cre"))
+Description: Different tools for processing genomic data. Related to PrediXcan and MetaXcan methods.
+Depends: R (>= 3.4.0)
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+  dplyr (>= 0.6.0),
+  ggplot2 (>= 2.2.1),
+  magrittr (>= 1.5),
+  stringr (>= 1.2.0)
+RoxygenNote: 6.0.1.9000
