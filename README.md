@@ -1,6 +1,6 @@
 # MetaXcan Paper Analysis
 
-This repository contains software and instructions to reproduce all material and analysis in the MulTiXcan paper ([Nature Communications](https://www.nature.com/articles/s41467-018-03621-1)).
+This repository contains software and instructions to reproduce all material and analysis in the MetaXcan paper ([Nature Communications](https://www.nature.com/articles/s41467-018-03621-1)).
 
 You can find MetaXcan implementation in [Github](https://github.com/hakyimlab/MetaXcan).
 
